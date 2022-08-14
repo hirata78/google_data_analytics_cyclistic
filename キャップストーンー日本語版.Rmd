@@ -1,0 +1,436 @@
+---
+title: "Googleデータ分析キャップストーン"
+subtitle: "ケーススタディ：Cyclistic自転車シェア会社の分析"
+author: "Marcelo Hirata"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    theme: cerulean
+    toc: yes
+    toc_deph: 3
+    toc_float: yes
+  pdf_document:
+    toc: yes
+editor_options:
+  markdown:
+    wrap: sentence
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+</br></br>
+
+# 1 紹介 </br>
+
+
+
+### 1.1 会社概要Cyclisticバイクシェア
+
+|           2016年、Cyclicisticは成功した自転車シェアサービスを開始しました。 それ以来、このプログラムは、シカゴ全体の692の駅のネットワークにジオトラッキングされ、ロックされた5,824台の自転車のフリートに成長しました。
+   バイクは、あるステーションからロックを解除して、システム内の他のステーションにいつでも戻すことができます。
+| 
+|           Cyclisticは、リカンベントバイク、ハンド三輪車、カーゴバイクも提供することで他とは一線を画し、標準的な二輪バイクを使用できない障害者やライダーにとって、バイクシェアをより包括的にします。 
+  ライダーの大多数はトラディショナルなバイクを選びます。 ライダーの約8％が補助オプションを使用しています。 
+  サイクリスティックなユーザーは余暇に乗る傾向がありますが、約30％が毎日通勤するためにそれらを使用しています。
+  
+| 
+|           これまで、Cyclicisticのマーケティング戦略は、一般的な認識を構築し、シングルライドパス、1日パス、年間メンバーシップの3つの価格プランで幅広い消費者セグメントにアピールすることに依存していました。
+    シングルライドまたは1日パスを購入したお客様は、**カジュアル**ライダーと呼ばれます。
+   年間メンバーシップを購入するお客様は、Cyclistic**メンバー**です。
+| 
+| 
+### 1.2 シナリオ
+| 
+|           あなたは、シカゴの自転車シェア会社であるCyclicisticのマーケティングアナリストチームで働くジュニアデータアナリストです。 マーケティングディレクターは、会社の将来の成功は年間会員数を最大化することにかかっていると信じています。 したがって、チームは、カジュアルライダーと年間メンバーがCyclicisticバイクをどのように異なる方法で使用しているかを理解したいと考えています。 これらの洞察から、チームはカジュアルライダーを年間メンバーに変えるための新しいマーケティング戦略を設計します。 ただし、最初に、Cyclisticの幹部は推奨事項を承認する必要があるため、説得力のあるデータの洞察と専門的なデータの視覚化でバックアップする必要があります。
+
+
+| 
+| 
+### 1.3 利害関係者
+| 
+- **Lily Moreno **：マーケティングディレクターとマネージャー。 モレノは、自転車シェアプログラムを促進するためのキャンペーンとイニシアチブの開発を担当しています。
+- **Cyclisticマーケティング分析チーム**：サイクリスティックマーケティング戦略のガイドに役立つデータの収集、分析、およびレポートを担当するデータアナリストのチーム。 あなたは6か月前にこのチームに参加し、Cyclisticの使命とビジネス目標、およびジュニアデータアナリストとしてCyclicisticがそれらを達成するのにどのように役立つかについて学ぶことに忙しくしています。
+- **Cyclisticエグゼクティブチーム**：悪名高い詳細志向のエグゼクティブチームが、推奨されるマーケティングプログラムを承認するかどうかを決定します。
+| 
+| 
+
+### 1.3 ビジネスタスク
+
+
+|           3つの質問が将来のマーケティングプログラムを導きます。
+1.毎年恒例のメンバーとカジュアルライダーは、サイクリスティックバイクの使い方がどのように異なりますか？
+2.カジュアルライダーがCyclicisticの年間メンバーシップを購入するのはなぜですか？
+3. Cyclisticは、デジタルメディアを使用して、カジュアルなライダーがメンバーになるようにどのように影響を与えることができますか？
+
+| この分析では、最初の質問に対処します。年間の**メンバー**と**カジュアル**のライダーは、サイクリスティックバイクをどのように使用しますか？
+|            
+
+</br>
+
+# 2 データの準備とプロセス </br>
+
+### 2.1 データソース
+| 
+|           この分析で使用されるデータは、構造化されたワイドデータセットを含む月次CSVファイルに保存された、Cyclicisticの過去12か月の過去のトリップデータ（2021/06から2022/05まで）を含みます。 
+  [*データソース(英語)*](https://divvy-tripdata.s3.amazonaws.com/index.html)
+|           これは、さまざまな顧客タイプがCyclicisticバイクをどのように使用しているかを調査するために使用できる公開データセットです。 
+  [*データライセンス(英語)*](https://ride.divvybikes.com/data-license-agreement)
+| 
+##### 環境を準備し、データをRにインポートします
+
+```{r load packages, echo=TRUE, message=FALSE, warning=FALSE}
+library(tidyverse) # データ操作
+library(janitor) # データクリーニング
+library(skimr) # 要約統計量
+library(lubridate) # 日時と期間を処理する
+library(ggplot2) # データを視覚化する
+library(hydroTSM) # 水文学で使用される時系列
+library(geosphere) # 地理的アプリケーション
+library(scales) # グラフィカルスケール
+library(stringr) # 文字列操作
+```
+
+```{r Import the datasets, echo=TRUE, message=FALSE, warning=FALSE}
+trip_2106 <- read_csv("202106-divvy-tripdata.csv")
+trip_2107 <- read_csv("202107-divvy-tripdata.csv")
+trip_2108 <- read_csv("202108-divvy-tripdata.csv")
+trip_2109 <- read_csv("202109-divvy-tripdata.csv")
+trip_2110 <- read_csv("202110-divvy-tripdata.csv")
+trip_2111 <- read_csv("202111-divvy-tripdata.csv")
+trip_2112 <- read_csv("202112-divvy-tripdata.csv")
+trip_2201 <- read_csv("202201-divvy-tripdata.csv")
+trip_2202 <- read_csv("202202-divvy-tripdata.csv")
+trip_2203 <- read_csv("202203-divvy-tripdata.csv")
+trip_2204 <- read_csv("202204-divvy-tripdata.csv")
+trip_2205 <- read_csv("202205-divvy-tripdata.csv")
+```
+| 
+| 
+##### data.framesのセットが行バインド可能であるかどうかを確認し、それらを結合します
+
+```{r Return error, echo=TRUE, message=FALSE, warning=FALSE}
+if(compare_df_cols_same(trip_2106, trip_2107, trip_2108, trip_2109, trip_2110, trip_2111, trip_2112, trip_2201, trip_2202, trip_2203, trip_2204, trip_2205))
+  {
+  all_trips <- rbind(trip_2106, trip_2107, trip_2108, trip_2109, trip_2110, trip_2111, trip_2112, trip_2201, trip_2202, trip_2203, trip_2204, trip_2205)
+  } else {
+    print("変数を確認してください")
+  }
+```
+| 
+| 
+### 2.2 データの説明とクレンジング
+| 
+| 
+##### データセットに精通する
+| 
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+skim_without_charts(all_trips)
+```
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+head(all_trips)
+```
+
+</br>
+
+|           データセットには、上記の期間にユーザーが行った各トリップの記録があります。 合計で、5,860,776個の観測値（トリップレコード）と13個の変数（特性）があります。サイズが大きいため、分析にはRプログラミング言語を使用します。
+
+|           データセットの制限の1つは、ユーザーのデータがないことです。 少なくともそれらの量またはいくつかの人口統計データを知ることは非常に有用ですが、それが提供されていないため、この分析はトリップの特性のみに焦点を当てます。
+
+| 
+
+</br>
+
+-   変数の説明と評価:
+    -   **ride_id** -- 16文字を含む各トリップの一意のID。 この変数には、欠落値はありません。 
+    -   **rideable_type** -- 自転車の種類。 3つの一意の値があり、欠落値はありません。
+    -   **start_at** and **ended_at** -- 乗車が開始および終了する日時。 それらは日時形式であり、欠落値はありません。
+    -   **start_station_name**, **start_station_id**, **end_station_name** and **end_station_id** -- 変数の名前はそれ自体を説明しています。 800,000を超える欠落値と1000を超える一意の値があり、使用可能なステーションの数（692）と一致していません。 これらの変数は信頼性が低く、分析に使用できません。
+    -   **start_lat**, **start_lng**, **end_lat** and **end_lng** -- 乗り物の開始位置と終了位置の座標（緯度と経度）。 トリップ終了座標には5036の欠落値しかないため、分析には影響しません。
+    
+| 
+##### この分析で使用されない変数を除外します。
+
+```{r select only the useful variables, echo=TRUE, message=FALSE, warning=FALSE}
+all_trips <- select(all_trips, 'ride_id', "rideable_type", "started_at", "ended_at", "member_casual",
+                    "start_lat", "start_lng", "end_lat", "end_lng")
+```
+
+| 
+##### トリップ期間を秒単位で変数を作成し、負の値があるかどうかを確認します。
+
+```{r Create the column trip_dur, echo=TRUE, message=FALSE, warning=FALSE}
+all_trips <- mutate(all_trips, "trip_dur" = difftime(ended_at, started_at, units = "secs"))
+```
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+summary(all_trips$trip_dur < 0)
+```
+
+- 開始時刻と終了時刻が一貫していないトリップは139回しかないため、それらを除外しても分析には影響しません。
+
+| 
+##### トリップ期間の値が負の観測値を除外します。
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+all_trips <- subset(all_trips, trip_dur > 0)
+```
+| 
+##### データがクリーンかどうかを確認します。
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+summary(all_trips$trip_dur < 0)
+```
+
+</br>
+
+### 2.3 ラングル </br>
+
+|           データを変換してアクセスしやすくし、コードを簡素化し、読みやすくします。
+
+
+##### より意味のある名前にするために列の名前を変更する
+
+```{r Renaming columns, echo=TRUE, message=FALSE, warning=FALSE}
+all_trips <- all_trips %>% 
+rename(trip_id = ride_id, bike_type = rideable_type)
+```
+
+
+##### 年の季節、月、曜日、時刻、およびトリップ距離の変数を作成します
+
+```{r crate columns year_season, echo=TRUE, message=FALSE, warning=FALSE}
+hr <- hour(all_trips$started_at)
+all_trips <- mutate(all_trips, "year_season" = time2season(all_trips$started_at, out.fmt = "seasons", type="default"),
+                    "month" = month(started_at, label = TRUE, abbr = TRUE),
+                    "day_of_week" = weekdays(started_at, abbreviate = TRUE),
+                    "day_time" = case_when(hr > 6 & hr < 12 ~ "morning",
+                                           hr >= 12 & hr < 16 ~ "afternoon",
+                                           hr >= 16 & hr < 20 ~ "evening",
+                                           TRUE ~ "night")
+                    )
+
+```
+
+
+
+```{r correct function miss spelling, echo=TRUE, message=FALSE, warning=FALSE}
+all_trips$year_season <- str_replace(all_trips$year_season, "autumm", "autumn")
+```
+
+
+```{r create column trip_dist, echo=TRUE, message=FALSE, warning=FALSE}
+all_trips <- all_trips %>% rowwise %>%
+  mutate("trip_dist" = distm(x = c(start_lng, start_lat), y = c(end_lng, end_lat), fun = distGeo))
+```
+
+
+
+```{r check created variable, echo=TRUE, message=FALSE, warning=FALSE}
+summary(all_trips$trip_dist)
+```
+
+</br>
+
+# 3 分析 </br>
+
+|           データを整理して視覚化し、分類、接続の発見、パターンの検索、テーマの特定を行いましょう。
+
+
+
+##### ユーザータイプ別のトリップ数-「メンバー」と「カジュアル」
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+plot_col <- c("#1d5a98", "#f0c660")
+legend_title <- "User type"
+ggplot(all_trips, mapping = aes(x = member_casual , fill = member_casual), labels = label_percent())+
+  geom_bar()+
+  geom_text(aes(label = scales::percent((..count..)/sum(..count..))), stat = "count", vjust = 1.5, colour = "white")+
+  scale_fill_manual(legend_title, values = plot_col)+
+  labs(title = "TRIPS BY MEMBERS x CASUALS",
+       x = NULL,
+       y = "Trip count")+
+  scale_y_continuous(labels = comma)
+```
+
+-   一年で、会員によるトリップのほうが多いです。
+
+
+
+### 3.1 カジュアルとメンバーライダーの「WHEN」Cyclicisticを使用すの違いとる </br>
+
+
+
+##### 年間の各季節における会員およびカジュアルによるトリップの数
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+ggplot(data = all_trips, mapping = aes(x = year_season, fill = member_casual))+
+    geom_bar(position = "dodge")+
+    geom_text(aes(label = scales::percent(..count../sum(..count..))), stat = "count", vjust = 1.4, hjust = 0.8, colour = "white", position = position_dodge(width = 0.9), angle = 45)+
+    labs(title = "TRIPS BY SEASON",
+         X = NULL,
+         y = "Trip count")+
+  scale_fill_manual(legend_title, values = plot_col)+
+  scale_x_discrete(limits = c("winter", "spring", "summer", "autumn"))
+```
+
+-   トリップ率は変動すると予想されますが、カジュアルトリップはメンバーよりも変動が大きいことがわかります。 これは、カジュアルなライダーが必ずしもCyclicisticバイクを使用する必要がないことを示している可能性があります。 彼らは別の交通手段を持っているか、ただのんびりと乗っているかもしれません。
+
+
+##### 毎月の会員およびカジュアルによるトリップの数
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+ggplot(data = all_trips, mapping = aes(x = month, fill = member_casual))+
+    geom_bar(position = "dodge")+
+    geom_text(aes(label = scales::percent(..count../sum(..count..))), stat = "count", vjust = 0.4, hjust = 1, colour = "white", position = position_dodge(width = 0.9), angle = 90)+
+    labs(title = "TRIPS BY MONTHS",
+         X = NULL,
+         y = "Trip count")+
+  scale_fill_manual(legend_title, values = plot_col)+
+  scale_y_continuous(labels = comma)
+```
+
+-   ここでは、7月と8月のカジュアルなトリップが±1％増加するなど、個々の月で季節の傾向と大きな違いはないことがわかります。
+
+
+
+
+##### 各シーズンの各曜日のメンバーおよびカジュアルによるトリップの数
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+ggplot(data = all_trips, mapping = aes(x = day_of_week, fill = member_casual))+
+  geom_bar(position = "dodge")+
+  labs(title = "TRIPS BY DAYS OF THE WEEK IN EACH SEASON OF THE YEAR",
+       X = NULL,
+       y = "Trip count",)+
+  scale_fill_manual(legend_title, values = plot_col)+
+  scale_x_discrete(limits = c("Mon","Tue","Wed","Thu","Fri","Sat","Sun"))+
+  scale_y_continuous(labels = comma)+
+  facet_wrap(~year_season)
+```
+
+-  曜日別にグループ化したデータを見ると、夏だけでなく、秋と春の土曜日の週末に、カジュアルなクライアントのトリップがメンバーを上回っていることがわかります。 これは、カジュアルなクライアントが余暇にCyclicisticを使用し、メンバーが日常的に使用していることを示しています。
+
+
+
+##### 時間帯別の会員およびカジュアルのトリップ数
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+ggplot(data = all_trips, mapping = aes(x = day_time, fill = member_casual))+
+  geom_bar(position = "dodge")+
+  geom_text(aes(label = scales::percent(..count../sum(..count..))), stat = "count", vjust = 0, hjust = 1.1, colour = "white",
+            angle = 90 , position = position_dodge(width = 1))+
+  labs(title = "TRIPS BY TIME OF THE DAY",
+       X = NULL,
+       y = "Trip count")+
+  scale_fill_manual(legend_title, values = plot_col)+
+  scale_x_discrete(limits = c("morning","afternoon","evening", "night"))+
+  scale_y_continuous(labels = comma)
+```
+
+- カジュアルなトリップは1日の時間帯で3％変動しますが、メンバーによるトリップは午前と午後の間であまり変化しませんが、通勤ラッシュアワーに合わせて夕方に大幅に増加し、夜に減少します。
+| 
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+ggplot(data = all_trips, mapping = aes(x = day_time, fill = member_casual))+
+  geom_bar(position = "dodge")+
+  labs(title = "TRIPS BY TIME OF THE DAY IN EACH DAY OF THE WEEK",
+       X = NULL,
+       y = "Trip count")+
+  scale_fill_manual(legend_title, values = plot_col)+
+  scale_x_discrete(limits = c("morning","afternoon","evening", "night"))+
+  scale_y_continuous(labels = comma)+
+  facet_wrap(~day_of_week)+
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.8, hjust=0.6))
+```
+
+- 曜日を見ると、重要な違いを見つけることができます。 週末には、カジュアルなトリップが増えるだけでなく、トリップの大部分は午後に始まり、カジュアルユーザーのもう1つの特徴が明らかになります。
+
+</br>
+
+### 3.1 カジュアルとメンバーライダーの「HOW」Cyclicisticを使用するの違い</br>
+
+
+##### メンバーとカジュアルによるトリップの期間
+
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+all_trips %>% 
+  group_by(year_season, member_casual) %>% summarise(duration_mean = mean(trip_dur), .groups = 'drop') %>% 
+ggplot(mapping = aes(x = member_casual, y = duration_mean, fill = member_casual))+
+  geom_col()+
+    labs(title = "TRIPS DURATON IN EACH SEASON",
+        X = NULL,
+        y = "Duration (sec) mean")+
+  scale_fill_manual(legend_title, values = plot_col)+
+  scale_y_continuous(labels = comma)+
+  facet_wrap(~year_season)
+```
+
+- カジュアルなトリップは、一年中メンバーのトリップよりも時間がかかります
+
+
+##### メンバーとカジュアルによるトリップの距離
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+all_trips %>% 
+  group_by(year_season, member_casual) %>% summarise(distance_mean = mean(trip_dist[!is.nan(trip_dist)]), .groups = 'drop') %>% 
+ggplot(mapping = aes(x = member_casual, y = distance_mean, fill = member_casual))+
+  geom_col()+
+  labs(title = "TRIPS DISTANCE IN EACH SEASON",
+        X = NULL,
+        y = "Distance (m) mean")+
+  scale_fill_manual(legend_title, values = plot_col)+
+  scale_y_continuous(labels = comma)+
+  facet_wrap(~year_season)
+  
+```
+
+- 時間と距離でトリップを比較すると、カジュアルなトリップは長くて時間がかかることがわかりますが、距離の増加率は期間の増加率ほど大きくはありません。 したがって、カジュアルな乗り物は少し長くなりますが、はるかに時間がかかります。 もう1つの確認は、カジュアルがレジャーにCyclistcを使用していることです。
+
+
+
+
+##### メンバーとカジュアルによるバイクの種類
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+ggplot(all_trips, mapping = aes(x = bike_type, fill = member_casual), labels = label_percent())+
+  geom_bar(position = "dodge")+
+  geom_text(aes(label = scales::percent(..count../sum(..count..))), stat = "count", vjust = 0, hjust = 1.1, colour = "white",
+            angle = 90 , position = position_dodge(width = 1))+
+  scale_fill_manual(legend_title, values = plot_col)+
+  labs(title = "BIKES TYPES BY MEMBERS x CASUALS",
+       x = NULL,
+       y = "Trip count")+
+  scale_y_continuous(labels = comma)
+```
+
+- この分析に関連する傾向はありません。
+
+
+</br>
+
+# 4 最終的な考慮事項 </br>
+
+### 4.1 違い
+-カジュアルユーザーの大多数は、レジャーにCycisticを使用し、日常生活にメンバーを使用しており、通勤する可能性が最も高いです。 これが、次の違いの理由です。
+   -メンバーのトリップ数は、1年の各シーズンのカジュアル数ほど変化しません。
+   -カジュアルは週末に、メンバーは平日にもっと乗ります。
+   -カジュアルなトリップは主に午後に始まり、メンバーは夕方に始まります。
+   -カジュアルなトリップは距離と時間が長くなります。
+
+### 4.2 推奨事項
+
+-カジュアルな季節性があるため、Cyclicisticにとって、暖かい日、週末、または午後のためだけにセグメント化されたメンバーシップを作成することは興味深いかもしれません。
+
+-カジュアルは主に自由時間にサイクリックを使用するため、「シカゴ観光」、「家族で自転車に乗る」、「自転車に乗る日」などのテーマをターゲットにしたマーケティングキャンペーンを行う必要があります。
+
+
+| 
+| 
+| 
+| 
